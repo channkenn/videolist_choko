@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>リスト_ちょこっと自然農 -try natural farming-</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        margin: 20px;
+      }
+      .sort-container {
+        margin-bottom: 10px;
+      }
+      .container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+      }
+      .panel {
+        border: 1px solid #ddd;
+        padding: 10px;
+        width: 250px;
+        border-radius: 5px;
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+        text-align: left;
+        background-color: #f9f9f9;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      .panel:hover {
+        transform: scale(1.05);
+        box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.2);
+      }
+      .panel a {
+        text-decoration: none;
+        color: black;
+        display: block;
+        padding: 10px;
+      }
+      /* 検索窓のスタイル */
+      #searchInput {
+        width: 300px; /* 幅を広げる */
+        padding: 8px;
+        font-size: 16px;
+        margin-right: 10px;
+      }
+      /* ソート窓のスタイル */
+      #sortSelect {
+        width: 200px; /* 幅を広げる */
+        padding: 8px;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>リスト_ちょこっと自然農 -try natural farming-</h2>
+
+    <!-- 検索窓 -->
+    <div>
+      <input
+        type="text"
+        id="searchInput"
+        placeholder="AND検索: 複数のキーワードを入力"
+      />
+      <button onclick="filterData()">検索</button>
+      <!-- 検索ボタン -->
+    </div>
+
+    <!-- ソートメニュー -->
+    <div class="sort-container">
+      <label for="sortSelect">ソート順:</label>
+      <select id="sortSelect">
+        <option value="date-desc">公開日 (新しい順)</option>
+        <option value="date-asc">公開日 (古い順)</option>
+        <option value="views-desc">再生数 (多い順)</option>
+        <option value="views-asc">再生数 (少ない順)</option>
+        <option value="likes-desc">いいね (多い順)</option>
+        <option value="likes-asc">いいね (少ない順)</option>
+        <option value="comments-desc">コメント (多い順)</option>
+        <option value="comments-asc">コメント (少ない順)</option>
+      </select>
+    </div>
+
+    <div class="container" id="output"></div>
+
+    <script>
+      let videoData = [];
+
+      // CSVファイルを読み込む
+      fetch("videolist20250204.csv")
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("CSVファイルが見つかりませんでした。");
+          }
+          return response.text();
+        })
+        .then((text) => {
+          console.log("CSV 読み込み成功:", text);
+          videoData = parseCSV(text);
+          sortAndDisplay("date-desc");
+        })
+        .catch((error) => console.error("CSVの読み込みエラー:", error.message));
+
+      // CSVを解析
+      function parseCSV(csvText) {
+        const rows = csvText.split("\n").map((row) => row.split(","));
+
+        return rows
+          .slice(1)
+          .map((row) => {
+            // 空行やカラム数が足りない行をスキップ
+            if (row.length < 6 || row[0].trim() === "") return null;
+
+            const dateObj = new Date(row[2]?.trim()); // ISO 8601形式の日付を処理
+
+            return {
+              title: row[0]?.trim() || "No Title",
+              url: row[1]?.trim() || "#",
+              publishedDate:
+                dateObj.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }) ||
+                "2000-01-01", // 日本時間で表示
+              viewCount: parseInt(row[3]?.trim(), 10) || 0,
+              likeCount: parseInt(row[4]?.trim(), 10) || 0,
+              commentCount: parseInt(row[5]?.trim(), 10) || 0,
+            };
+          })
+          .filter((video) => video !== null); // 無効なデータを除外
+      }
+
+      // AND検索機能
+      function filterData() {
+        const searchQuery = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+        const keywords = searchQuery.split(" ").filter(Boolean); // スペース区切りでキーワードを分割
+
+        // タイトルにすべてのキーワードが含まれているかをチェック
+        const filteredData = videoData.filter((video) => {
+          return keywords.every((keyword) =>
+            video.title.toLowerCase().includes(keyword)
+          );
+        });
+
+        sortAndDisplay("date-desc", filteredData); // デフォルトは公開日新しい順にソート
+      }
+
+      // ソートと表示 (フィルタリングしたデータを表示)
+      function sortAndDisplay(sortType, data = videoData) {
+        const output = document.getElementById("output");
+        output.innerHTML = "";
+
+        let sortedData = [...data];
+
+        switch (sortType) {
+          case "date-desc":
+            sortedData.sort(
+              (a, b) => new Date(b.publishedDate) - new Date(a.publishedDate)
+            );
+            break;
+          case "date-asc":
+            sortedData.sort(
+              (a, b) => new Date(a.publishedDate) - new Date(b.publishedDate)
+            );
+            break;
+          case "views-desc":
+            sortedData.sort((a, b) => b.viewCount - a.viewCount);
+            break;
+          case "views-asc":
+            sortedData.sort((a, b) => a.viewCount - b.viewCount);
+            break;
+          case "likes-desc":
+            sortedData.sort((a, b) => b.likeCount - a.likeCount);
+            break;
+          case "likes-asc":
+            sortedData.sort((a, b) => a.likeCount - b.likeCount);
+            break;
+          case "comments-desc":
+            sortedData.sort((a, b) => b.commentCount - a.commentCount);
+            break;
+          case "comments-asc":
+            sortedData.sort((a, b) => a.commentCount - b.commentCount);
+            break;
+        }
+
+        sortedData.forEach((video) => {
+          const panel = document.createElement("a");
+          panel.href = video.url;
+          panel.target = "_blank";
+          panel.className = "panel";
+          panel.innerHTML = `
+                    <strong>${video.title}</strong><br>
+                    📅 公開日: ${video.publishedDate}<br>
+                    👁️ 再生回数: ${video.viewCount}<br>
+                    👍 高評価: ${video.likeCount}<br>
+                    💬 コメント: ${video.commentCount}
+                `;
+          output.appendChild(panel);
+        });
+      }
+
+      // ソートメニューの変更時に並び替え
+      document
+        .getElementById("sortSelect")
+        .addEventListener("change", function () {
+          const searchQuery = document
+            .getElementById("searchInput")
+            .value.toLowerCase();
+          const keywords = searchQuery.split(" ").filter(Boolean); // キーワードを分割
+          const filteredData = videoData.filter((video) => {
+            return keywords.every((keyword) =>
+              video.title.toLowerCase().includes(keyword)
+            );
+          });
+          sortAndDisplay(this.value, filteredData);
+        });
+    </script>
+  </body>
+</html>
